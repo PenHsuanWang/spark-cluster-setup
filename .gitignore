@@ -1,0 +1,23 @@
+# Ignore all files inside the Data directory
+data/*
+
+# Allow the Data directory itself to be tracked
+!data/
+
+# Allow the first-level directories under data (minio, postgresql, spark-master, spark-worker) to be tracked
+!data/minio/
+!data/postgresql/
+!data/spark-master/
+!data/spark-worker/
+
+# Ignore everything inside the first-level directories
+data/minio/**
+data/postgresql/**
+data/spark-master/**
+data/spark-worker/**
+
+# Optional: Ignore other common files
+# .DS_Store (for macOS)
+.DS_Store
+# Python bytecode
+__pycache__/
