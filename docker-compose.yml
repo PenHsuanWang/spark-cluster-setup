@@ -1,0 +1,152 @@
+version: '3.8'
+
+services:
+  spark-master:
+    image: bitnami/spark:latest
+    container_name: spark-master
+    environment:
+      - SPARK_MODE=master
+      - SPARK_MASTER_HOST=spark-master
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - AWS_REGION=us-east-1
+    ports:
+      - "7077:7077"    # Spark Master port for cluster
+      - "8080:8080"    # Spark Web UI
+    volumes:
+      - spark_master_data:/opt/spark/data
+    networks:
+      - spark_network
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: "4G"
+
+  spark-worker:
+    image: bitnami/spark:latest
+    container_name: spark-worker
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - AWS_REGION=us-east-1
+    depends_on:
+      - spark-master
+    ports:
+      - "8081:8081"    # Spark Worker Web UI
+    volumes:
+      - spark_worker_data:/opt/spark/data
+    networks:
+      - spark_network
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: "4G"
+
+  jupyter:
+    build:
+      context: .
+      dockerfile: Dockerfile.jupyter
+    container_name: jupyter-notebook
+    ports:
+      - "8888:8888"    # Jupyter Notebook
+    volumes:
+      - ./notebooks:/home/jovyan/work
+    environment:
+      - SPARK_MASTER=spark://spark-master:7077
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - AWS_REGION=us-east-1
+    depends_on:
+      - spark-master
+      - minio
+    networks:
+      - spark_network
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: "2G"
+
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    environment:
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"    # S3 API
+      - "9001:9001"    # MinIO Console
+    volumes:
+      - minio_data:/data
+    networks:
+      - spark_network
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: "2G"
+
+  kafka:
+    image: wurstmeister/kafka:latest
+    container_name: kafka
+    ports:
+      - "9092:9092"    # Kafka port
+    environment:
+      - KAFKA_ADVERTISED_HOST_NAME=kafka
+      - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
+    depends_on:
+      - zookeeper
+    networks:
+      - spark_network
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: "2G"
+
+  zookeeper:
+    image: wurstmeister/zookeeper:latest
+    container_name: zookeeper
+    ports:
+      - "2181:2181"    # Zookeeper port
+    networks:
+      - spark_network
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: "1G"
+
+  postgresql:
+    image: postgres:latest
+    container_name: postgresql
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=mydb
+    ports:
+      - "5432:5432"    # PostgreSQL port
+    volumes:
+      - postgresql_data:/var/lib/postgresql/data
+    networks:
+      - spark_network
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: "2G"
+
+networks:
+  spark_network:
+    driver: bridge
+
+volumes:
+  spark_master_data:
+  spark_worker_data:
+  minio_data:
+  postgresql_data:
