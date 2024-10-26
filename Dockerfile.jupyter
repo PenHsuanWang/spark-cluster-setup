@@ -1,25 +1,35 @@
-FROM jupyter/pyspark-notebook
+FROM bitnami/spark:3.4.1
 
 USER root
 
 # Install curl
 RUN apt-get update && \
-    apt-get install -y curl && \
+    apt-get install -y curl python3-pip python3-dev python3-setuptools build-essential && \
     rm -rf /var/lib/apt/lists/*
 
+RUN pip3 install notebook
+
 # Install PySpark to ensure it is available
-RUN pip install pyspark==3.4.1
+RUN pip3 install pyspark==3.4.1
+RUN pip3 install matplotlib pandas
 
 # Create the /opt/spark/jars/ directory before downloading the JAR files
 RUN mkdir -p /opt/spark/jars/
 
 # Download the Hadoop AWS JAR and the AWS SDK bundle
-RUN curl -L -o /opt/spark/jars/hadoop-aws-3.3.1.jar https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.3.1/hadoop-aws-3.3.1.jar && \
-    curl -L -o /opt/spark/jars/aws-java-sdk-bundle-1.12.262.jar https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.12.262/aws-java-sdk-bundle-1.12.262.jar
+RUN curl -L -o /opt/bitnami/spark/jars/hadoop-aws-3.3.1.jar https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.3.1/hadoop-aws-3.3.1.jar && \
+    curl -L -o /opt/bitnami/spark/jars/aws-java-sdk-bundle-1.12.262.jar https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.12.262/aws-java-sdk-bundle-1.12.262.jar
 
 # Install and configure Jupyter logs
-RUN mkdir -p /var/log/jupyter
-RUN chown -R $NB_UID:$NB_GID /var/log/jupyter
+RUN mkdir -p /var/log/jupyter && \
+    chown -R 1001:1001 /var/log/jupyter
+
+USER 1001
+
+WORKDIR /home/jovyan/work
+
+ENV SPARK_HOME=/opt/bitnami/spark
+ENV PYTHONPATH=$SPARK_HOME/python:$SPARK_HOME/python/lib/py4j-0.10.9.5-src.zip
 
 # Use tee to write logs both to stdout (for Docker logs) and to a file
 CMD ["sh", "-c", "jupyter notebook --notebook-dir=/home/jovyan/work --ip=0.0.0.0 --port=8888 --no-browser --allow-root 2>&1 | tee /var/log/jupyter/jupyter.log"]
