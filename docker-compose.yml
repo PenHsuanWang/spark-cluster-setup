@@ -1,4 +1,4 @@
-version: '3'
+version: '3.8'
 
 services:
   spark-master:
@@ -44,7 +44,7 @@ services:
     ports:
       - "8081:8081"
     volumes:
-      - spark-worker-data:/opt/bitnami/spark/work
+      - spark-worker:/opt/bitnami/spark/work
       - spark-logs:/opt/bitnami/spark/logs
       - ./spark-defaults.conf:/opt/bitnami/spark/conf/spark-defaults.conf
       - ./log4j.properties:/opt/bitnami/spark/conf/log4j.properties
@@ -62,6 +62,7 @@ services:
     container_name: jupyter-notebook
     ports:
       - "8888:8888"
+      - "4040:4040" 
     volumes:
       - ./notebooks:/home/jovyan/work
       - ./jupyter_logs:/var/log/jupyter
@@ -80,6 +81,25 @@ services:
       - spark_network
     mem_limit: 6g
     cpus: 2
+
+  spark-history-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.spark
+    container_name: spark-history-server
+    ports:
+      - "18080:18080"
+    environment:
+      - SPARK_MODE=history-server
+      - SPARK_HISTORY_OPTS=-Dspark.history.fs.logDirectory=/opt/bitnami/spark/logs
+    volumes:
+      - spark-logs:/opt/bitnami/spark/logs
+    depends_on:
+      - spark-master
+    networks:
+      - spark_network
+    mem_limit: 2g
+    cpus: 1
 
   minio:
     image: minio/minio:latest
