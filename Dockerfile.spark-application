@@ -1,0 +1,47 @@
+FROM bitnami/spark:3.4.1
+
+USER root
+
+# Install necessary tools and utilities
+RUN apt-get update && \
+    apt-get install -y curl netcat iputils-ping vim emacs htop zsh git && \
+    rm -rf /var/lib/apt/lists/*
+
+# Set up Kafka
+ARG KAFKA_VERSION=3.5.1
+RUN curl -L -o kafka.tgz https://archive.apache.org/dist/kafka/$KAFKA_VERSION/kafka_2.13-$KAFKA_VERSION.tgz && \
+    tar -xzf kafka.tgz && \
+    mv kafka_2.13-$KAFKA_VERSION /opt/kafka && \
+    rm kafka.tgz
+
+# Add Kafka bin directory to PATH
+ENV PATH="$PATH:/opt/kafka/bin"
+
+# Create directory for Spark jars and download Hadoop AWS and AWS SDK jars for Spark with MinIO (S3-compatible storage)
+RUN mkdir -p /opt/spark/jars && \
+    curl -L -o /opt/spark/jars/hadoop-aws-3.3.1.jar https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.3.1/hadoop-aws-3.3.1.jar && \
+    curl -L -o /opt/spark/jars/aws-java-sdk-bundle-1.12.262.jar https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.12.262/aws-java-sdk-bundle-1.12.262.jar
+
+# Set permissions on Spark and Kafka directories
+RUN chown -R 1001:1001 /opt/spark /opt/kafka
+
+# Install Powerline10k for Zsh
+RUN git clone --depth=1 https://github.com/romkatv/powerlevel10k.git /root/powerlevel10k && \
+    echo 'source /root/powerlevel10k/powerlevel10k.zsh-theme' >> /root/.zshrc
+
+# Switch to Zsh by default and configure Powerline10k
+RUN chsh -s $(which zsh) root
+
+# Create a new user with a readable username and set up their home directory
+RUN useradd -m -u 1001 -s /bin/zsh sparkuser && \
+    cp /root/.zshrc /home/sparkuser/ && \
+    echo 'export PS1="%n@%m:%~%# "' >> /home/sparkuser/.zshrc && \
+    chown -R sparkuser:sparkuser /home/sparkuser
+
+# Set sparkuser as the default user for the container
+USER sparkuser
+WORKDIR /home/sparkuser
+
+# Set environment variables for Spark and Kafka
+ENV SPARK_HOME=/opt/bitnami/spark
+ENV KAFKA_HOME=/opt/kafka
