@@ -236,7 +236,7 @@ services:
   spark-application:
     build:
       context: .
-      dockerfile: Dockerfile.spark
+      dockerfile: Dockerfile.spark-application
     container_name: spark-application
     environment:
       - SPARK_MASTER=spark://spark-master:7077
@@ -249,7 +249,7 @@ services:
     volumes:
       - ./spark-defaults.conf:/opt/bitnami/spark/conf/spark-defaults.conf
       - ./log4j.properties:/opt/bitnami/spark/conf/log4j.properties
-      - ./your-spark-applications:/opt/bitnami/spark/applications  # Mount a folder for Spark applications
+      - ./spark-applications:/opt/bitnami/spark/applications  # Mount a folder for Spark applications
     depends_on:
       - spark-master
       - kafka1
